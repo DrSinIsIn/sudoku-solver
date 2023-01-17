@@ -98,3 +98,13 @@ TEST(StaticRegularSudokuTest, isValid)
     ASSERT_FALSE(filledGridWithDuplicate.isValid());
     ASSERT_FALSE(filledGridWithOverMax.isValid());
 }
+
+TEST(StaticRegularSudokuTest, isSolved)
+{
+    ASSERT_FALSE(emptyGrid.isSolved());
+    ASSERT_FALSE(startingGrid.isSolved());
+    ASSERT_TRUE(solvedGrid.isSolved());
+    ASSERT_FALSE(filledGridWithDuplicate.isSolved());
+    ASSERT_FALSE(filledGridWithOverMax.isSolved());
+
+}

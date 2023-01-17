@@ -142,6 +142,14 @@ public:
         return true;
     }
 
+#if (__cpp_lib_constexpr_bitset >= 202207L)
+    constexpr
+#endif
+    bool isSolved() const noexcept
+    {
+        return isFilled() && isValid();
+    }
+
 private:
     Array m_array{};
 };
