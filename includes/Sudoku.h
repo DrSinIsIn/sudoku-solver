@@ -44,14 +44,14 @@ public:
 
     template<std::convertible_to<Integer>... Ints>
         requires (sizeof...(Ints) == cellCount)
-    explicit StaticRegularSudoku(Ints&&... ints)
+    explicit constexpr StaticRegularSudoku(Ints&&... ints)
         : m_array{ static_cast<Integer>(ints)... }
     {}
 
-    auto begin() const noexcept { return m_array.begin(); }
-    auto end() const noexcept { return m_array.end(); }
-    auto begin() noexcept { return m_array.begin(); }
-    auto end() noexcept { return m_array.end(); }
+    constexpr auto begin() const noexcept { return m_array.begin(); }
+    constexpr auto end() const noexcept { return m_array.end(); }
+    constexpr auto begin() noexcept { return m_array.begin(); }
+    constexpr auto end() noexcept { return m_array.end(); }
 
 private:
     Array m_array{};
