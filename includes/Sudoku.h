@@ -27,6 +27,7 @@ namespace details
 
 template<std::unsigned_integral Integer, std::size_t boxWidth_, std::size_t boxHeight_>
     requires ((boxWidth_ * boxHeight_) > 0)
+           && (std::in_range<Integer>(boxWidth_ * boxHeight_))
 class StaticRegularSudoku
 {
 public:
