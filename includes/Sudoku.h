@@ -26,9 +26,9 @@ namespace details
 
 } // namespace details
 
-template<std::unsigned_integral Integer, std::size_t boxWidth_, std::size_t boxHeight_>
+template<std::unsigned_integral Integer_, std::size_t boxWidth_, std::size_t boxHeight_>
     requires ((boxWidth_ * boxHeight_) > 0)
-           && (std::in_range<Integer>(boxWidth_ * boxHeight_))
+           && (std::in_range<Integer_>(boxWidth_ * boxHeight_))
 class StaticRegularSudoku
 {
 public:
@@ -40,6 +40,7 @@ public:
     static constexpr std::size_t boxCount = maxValue;
     static constexpr std::size_t cellCount = (maxValue * maxValue);
 
+    using Integer = Integer_;
     using Array = std::array<Integer, cellCount>;
 
     StaticRegularSudoku() = default;
