@@ -7,9 +7,12 @@
 
 #include <algorithm>
 #include <array>
+#include <bitset>
 #include <concepts>
 #include <cstddef>
+#include <functional>
 #include <type_traits>
+#include <version>
 
 namespace details
 {
@@ -96,6 +99,47 @@ public:
     constexpr bool isFilled() const noexcept
     {
         return std::ranges::all_of(m_array, std::identity{});
+    }
+
+#if (__cpp_lib_constexpr_bitset >= 202207L)
+    constexpr
+#endif
+    bool isValid() const noexcept
+    {
+        std::array<std::bitset<maxValue>, columnCount> columnChecks{};
+        std::array<std::bitset<maxValue>, rowCount> rowChecks{};
+        std::array<std::bitset<maxValue>, boxCount> boxChecks{};
+
+        for (std::size_t i = 0; i < cellCount; ++i)
+        {
+            Integer const val = m_array[i];
+            if (val > maxValue)
+            {
+                return false;
+            }
+
+            if (val == 0)
+            {
+                continue;
+            }
+
+            auto const [x, y] = cellToCoordinates(i);
+            std::array<std::reference_wrapper<std::bitset<maxValue>>, 3> const toCheck = {
+                columnChecks[x], rowChecks[y], boxChecks[cellToBoxIndex(i)]
+            };
+
+            for (auto& bitset : toCheck)
+            {
+                if (bitset.get().test(val - 1))
+                {
+                    return false;
+                }
+
+                bitset.get().set(val - 1);
+            }
+        }
+
+        return true;
     }
 
 private:
