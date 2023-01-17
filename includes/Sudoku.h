@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <concepts>
 #include <cstddef>
@@ -53,6 +54,11 @@ public:
     constexpr auto end() const noexcept { return m_array.end(); }
     constexpr auto begin() noexcept { return m_array.begin(); }
     constexpr auto end() noexcept { return m_array.end(); }
+
+    constexpr bool isFilled() const noexcept
+    {
+        return std::ranges::all_of(m_array, std::identity{});
+    }
 
 private:
     Array m_array{};
