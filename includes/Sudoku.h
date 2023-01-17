@@ -40,6 +40,43 @@ public:
     static constexpr std::size_t boxCount = maxValue;
     static constexpr std::size_t cellCount = (maxValue * maxValue);
 
+    static constexpr std::size_t coordinatesToCell(std::size_t x, std::size_t y)
+    {
+        return x + (y * columnCount);
+    }
+
+    static constexpr std::size_t cellToX(std::size_t i)
+    {
+        return i % columnCount;
+    }
+
+    static constexpr std::size_t cellToY(std::size_t i)
+    {
+        return i / columnCount;
+    }
+
+    static constexpr std::pair<std::size_t, std::size_t> cellToCoordinates(std::size_t i)
+    {
+        return { cellToX(i), cellToY(i) };
+    }
+
+    static constexpr std::size_t cellToBoxTopLeftCell(std::size_t i)
+    {
+        auto const [x, y] = cellToCoordinates(i);
+        return coordinatesToCell((x - (x % boxWidth)), (y - (y % boxHeight)));
+    }
+
+    static constexpr std::size_t cellToBoxIndex(std::size_t i)
+    {
+        auto const [x, y] = cellToCoordinates(i);
+        return (x / boxWidth) + (y - (y % boxHeight));
+    }
+
+    static constexpr std::size_t boxIndexToTopLeftCell(std::size_t i)
+    {
+        return coordinatesToCell((i % boxHeight) * boxWidth, i - (i % boxHeight));
+    }
+
     using Integer = Integer_;
     using Array = std::array<Integer, cellCount>;
 
