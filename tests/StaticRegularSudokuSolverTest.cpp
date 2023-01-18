@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include "Solvers/HiddenTupleSolver.h"
 #include "Solvers/NakedSingleSolver.h"
 #include "Solvers/Utility/SudokuDescriptor.h"
 #include "Sudoku.h"
@@ -25,6 +26,16 @@ namespace
                                                           0, 0, 7, 2, 0, 0, 0, 8, 0, //
                                                           0, 2, 6, 0, 0, 0, 0, 3, 5, //
                                                           0, 0, 0, 4, 0, 9, 0, 0, 0 };
+
+    inline constexpr SRSudoku9x9 hiddenSingleFirstStep  { 1, 4, 0, 0, 9, 0, 0, 0, 0, //
+                                                          0, 2, 8, 3, 0, 0, 0, 0, 9, //
+                                                          0, 6, 0, 7, 0, 0, 0, 0, 0, //
+                                                          0, 9, 5, 4, 2, 0, 0, 0, 0, //
+                                                          0, 8, 4, 9, 0, 0, 0, 3, 0, //
+                                                          0, 0, 0, 0, 7, 5, 9, 4, 0, //
+                                                          8, 0, 0, 0, 0, 7, 0, 9, 0, //
+                                                          4, 0, 0, 0, 0, 9, 1, 7, 8, //
+                                                          0, 0, 0, 0, 8, 0, 0, 6, 3 };
 }
 
 TEST(StaticRegularSudokuSolverTest, nakedSingleSolver_solveOnce)
@@ -96,4 +107,98 @@ TEST(StaticRegularSudokuSolverTest, solvePureNakedSingleSolvable)
 
     // Nothing has been changed that shouldn't have been
     ASSERT_EQ(mismatchIt, resultGrid.end());
+}
+
+TEST(StaticRegularSudokuSolverTest, hiddenSingleSolver_solveOnce)
+{
+    HiddenSingleSolver<SRSudoku9x9> solver;
+    SudokuDescriptor<SRSudoku9x9> const startDescriptor{ ::hiddenSingleFirstStep };
+    SudokuDescriptor<SRSudoku9x9> descriptor{ startDescriptor };
+
+    {
+        NakedSingleSolver<SRSudoku9x9> nakedSingleSolver;
+
+        // No naked singles to solve
+        ASSERT_FALSE(nakedSingleSolver.solveOnce(descriptor));
+
+        SRSudoku9x9 const resultGrid = descriptor;
+
+        // Nothing changed
+        auto const [mismatchIt, _] = std::ranges::mismatch(resultGrid, ::hiddenSingleFirstStep);
+        ASSERT_EQ(mismatchIt, resultGrid.end());
+    }
+
+    {
+        // Before running solver, cell (1, 8) has multiple possible values
+        auto const cellIndex = ::hiddenSingleFirstStep.coordinatesToCell(1, 8);
+        auto const cellMask = descriptor.cellMask(cellIndex);
+
+        auto const count = std::ranges::count_if(descriptor.possibleCellsPerValue()
+                                               , [&cellMask](auto const& possibilities)
+                                                 {
+                                                     auto const masked = possibilities & cellMask;
+                                                     return !masked.none();
+                                                 }
+        );
+
+        ASSERT_GT(count, 1);
+    }
+
+    {
+        // Before running solver, cell (3, 5) has multiple possible values
+        auto const cellIndex = ::hiddenSingleFirstStep.coordinatesToCell(3, 5);
+        auto const cellMask = descriptor.cellMask(cellIndex);
+
+        auto const count = std::ranges::count_if(descriptor.possibleCellsPerValue()
+                                               , [&cellMask](auto const& possibilities)
+                                                 {
+                                                     auto const masked = possibilities & cellMask;
+                                                     return !masked.none();
+                                                 }
+        );
+
+        ASSERT_GT(count, 1);
+    }
+
+
+    // One or more hidden singles have been found
+    ASSERT_TRUE(solver.solveOnce(descriptor));
+
+    {
+        // Cell (1, 8)'s only possibility should be 7 now
+        auto const cellIndex = ::hiddenSingleFirstStep.coordinatesToCell(1, 8);
+        auto const cellMask = descriptor.cellMask(cellIndex);
+        auto const onlyAllowedAddress = std::addressof(descriptor.possibleCellsFor(7));
+        for (auto const& possibilities : descriptor.possibleCellsPerValue())
+        {
+            auto const masked = possibilities & cellMask;
+            if (std::addressof(possibilities) == onlyAllowedAddress)
+            {
+                ASSERT_FALSE(masked.none());
+            }
+            else
+            {
+                ASSERT_TRUE(masked.none());
+            }
+        }
+    }
+
+    {
+        // Cell (3, 5)'s only possibility should be 8 now
+        auto const cellIndex = ::hiddenSingleFirstStep.coordinatesToCell(3, 5);
+        auto const cellMask = descriptor.cellMask(cellIndex);
+        auto const onlyAllowedAddress = std::addressof(descriptor.possibleCellsFor(8));
+        for (auto const& possibilities : descriptor.possibleCellsPerValue())
+        {
+            auto const masked = possibilities & cellMask;
+            if (std::addressof(possibilities) == onlyAllowedAddress)
+            {
+                ASSERT_FALSE(masked.none());
+            }
+            else
+            {
+                ASSERT_TRUE(masked.none());
+            }
+        }
+    }
 }
