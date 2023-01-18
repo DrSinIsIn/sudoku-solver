@@ -43,39 +43,39 @@ public:
     static constexpr std::size_t boxCount = maxValue;
     static constexpr std::size_t cellCount = (maxValue * maxValue);
 
-    static constexpr std::size_t coordinatesToCell(std::size_t x, std::size_t y)
+    static constexpr std::size_t coordinatesToCell(std::size_t x, std::size_t y) noexcept
     {
         return x + (y * columnCount);
     }
 
-    static constexpr std::size_t cellToX(std::size_t i)
+    static constexpr std::size_t cellToX(std::size_t i) noexcept
     {
         return i % columnCount;
     }
 
-    static constexpr std::size_t cellToY(std::size_t i)
+    static constexpr std::size_t cellToY(std::size_t i) noexcept
     {
         return i / columnCount;
     }
 
-    static constexpr std::pair<std::size_t, std::size_t> cellToCoordinates(std::size_t i)
+    static constexpr std::pair<std::size_t, std::size_t> cellToCoordinates(std::size_t i) noexcept
     {
         return { cellToX(i), cellToY(i) };
     }
 
-    static constexpr std::size_t cellToBoxTopLeftCell(std::size_t i)
+    static constexpr std::size_t cellToBoxTopLeftCell(std::size_t i) noexcept
     {
         auto const [x, y] = cellToCoordinates(i);
         return coordinatesToCell((x - (x % boxWidth)), (y - (y % boxHeight)));
     }
 
-    static constexpr std::size_t cellToBoxIndex(std::size_t i)
+    static constexpr std::size_t cellToBoxIndex(std::size_t i) noexcept
     {
         auto const [x, y] = cellToCoordinates(i);
         return (x / boxWidth) + (y - (y % boxHeight));
     }
 
-    static constexpr std::size_t boxIndexToTopLeftCell(std::size_t i)
+    static constexpr std::size_t boxIndexToTopLeftCell(std::size_t i) noexcept
     {
         return coordinatesToCell((i % boxHeight) * boxWidth, i - (i % boxHeight));
     }
@@ -87,7 +87,7 @@ public:
 
     template<std::convertible_to<Integer>... Ints>
         requires (sizeof...(Ints) == cellCount)
-    explicit constexpr StaticRegularSudoku(Ints&&... ints)
+    explicit constexpr StaticRegularSudoku(Ints&&... ints) noexcept
         : m_array{ static_cast<Integer>(ints)... }
     {}
 
