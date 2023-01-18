@@ -202,3 +202,29 @@ TEST(StaticRegularSudokuSolverTest, hiddenSingleSolver_solveOnce)
         }
     }
 }
+
+TEST(StaticRegularSudokuSolverTest, solvePureSingleSolvable)
+{
+    NakedSingleSolver<SRSudoku9x9> nakedSolver;
+    HiddenSingleSolver<SRSudoku9x9> hiddenSolver;
+    SudokuDescriptor<SRSudoku9x9> descriptor{ ::hiddenSingleFirstStep };
+
+    while (nakedSolver.solveOnce(descriptor) || hiddenSolver.solveOnce(descriptor))
+    {
+        ASSERT_TRUE(SRSudoku9x9{ descriptor }.isValid());
+    }
+
+    SRSudoku9x9 const resultGrid = descriptor;
+    ASSERT_TRUE(resultGrid.isSolved()); // All solved
+
+    auto const [mismatchIt, _] = std::ranges::mismatch(resultGrid
+                                                     , ::hiddenSingleFirstStep
+                                                     , [](auto value, auto model)
+                                                       {
+                                                           return (model == 0) || (value == model);
+                                                       }
+    );
+
+    // Nothing has been changed that shouldn't have been
+    ASSERT_EQ(mismatchIt, resultGrid.end());
+}
