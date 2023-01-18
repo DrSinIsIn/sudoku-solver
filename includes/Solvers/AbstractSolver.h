@@ -15,14 +15,5 @@ public:
     using Bitset = typename GridDescriptor::Bitset;
     using Integer = typename Grid::Integer;
 
-    bool operator()(Grid& inOutGrid)
-    {
-        GridDescriptor descriptor{ inOutGrid };
-        bool const result = solveOnce(descriptor);
-        inOutGrid = descriptor;
-
-        return result;
-    }
-
     virtual bool solveOnce(GridDescriptor& gridDescriptor) = 0;
 };

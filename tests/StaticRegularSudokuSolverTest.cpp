@@ -67,35 +67,26 @@ TEST(StaticRegularSudokuSolverTest, nakedSingleSolver_solveOnce)
 
     // Nothing has been changed that shouldn't have been
     ASSERT_EQ(mismatchIt, resultGrid.end());
-
-    {
-        SRSudoku9x9 gridToSolve = ::pureNakedSingleSolvable;
-
-        ASSERT_TRUE(solver(gridToSolve));
-
-        // Same result as with the descriptor
-        auto const [mismatchIt, _] = std::ranges::mismatch(gridToSolve, resultGrid);
-        ASSERT_EQ(mismatchIt, gridToSolve.end());
-    }
 }
 
 TEST(StaticRegularSudokuSolverTest, solvePureNakedSingleSolvable)
 {
     NakedSingleSolver<SRSudoku9x9> solver;
-    SRSudoku9x9 gridToSolve = ::pureNakedSingleSolvable;
+    SudokuDescriptor<SRSudoku9x9> descriptor{ ::pureNakedSingleSolvable };
 
-    std::size_t oldSolvedCount = std::ranges::count_if(gridToSolve, [](auto i) { return i > 0; });
-    while (solver(gridToSolve))
+    std::size_t oldMissingCount = descriptor.missingValues().count();
+    while (solver.solveOnce(descriptor))
     {
-        ASSERT_TRUE(gridToSolve.isValid());
-        std::size_t newSolvedCount = std::ranges::count_if(gridToSolve, [](auto i) { return i > 0; });
-        ASSERT_GT(newSolvedCount, oldSolvedCount);
-        oldSolvedCount = newSolvedCount;
+        ASSERT_TRUE(SRSudoku9x9{ descriptor }.isValid());
+        std::size_t newMissingCount = descriptor.missingValues().count();
+        ASSERT_LT(newMissingCount, oldMissingCount);
+        oldMissingCount = newMissingCount;
     }
 
-    ASSERT_TRUE(gridToSolve.isSolved()); // All solved
+    SRSudoku9x9 const resultGrid = descriptor;
+    ASSERT_TRUE(resultGrid.isSolved()); // All solved
 
-    auto const [mismatchIt, _] = std::ranges::mismatch(gridToSolve
+    auto const [mismatchIt, _] = std::ranges::mismatch(resultGrid
                                                      , ::pureNakedSingleSolvable
                                                      , [](auto value, auto model)
                                                        {
@@ -104,5 +95,5 @@ TEST(StaticRegularSudokuSolverTest, solvePureNakedSingleSolvable)
     );
 
     // Nothing has been changed that shouldn't have been
-    ASSERT_EQ(mismatchIt, gridToSolve.end());
+    ASSERT_EQ(mismatchIt, resultGrid.end());
 }
