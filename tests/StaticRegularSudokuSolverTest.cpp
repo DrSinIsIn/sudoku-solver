@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 
 #include "Solvers/HiddenTupleSolver.h"
+#include "Solvers/LockedCandidatesSolver.h"
 #include "Solvers/NakedSingleSolver.h"
 #include "Solvers/Utility/SudokuDescriptor.h"
 #include "Sudoku.h"
@@ -319,5 +320,32 @@ TEST(StaticRegularSudokuSolverTest, hiddenPairSolver_solveOnce)
                 ASSERT_TRUE(masked.none());
             }
         }
+    }
+}
+
+TEST(StaticRegularSudokuSolverTest, lockedCandidatesSolver_solveOnce)
+{
+    LockedCandidatesSolver<SRSudoku9x9> solver;
+    SudokuDescriptor<SRSudoku9x9> const startDescriptor{ ::hiddenPairExample };
+    SudokuDescriptor<SRSudoku9x9> descriptor{ startDescriptor };
+
+    {
+        // Before running solver, cell (6, 1) can be 3
+        auto const cellIndex = ::hiddenPairExample.coordinatesToCell(6, 1);
+        auto const possibilityAtCell = descriptor.possibleCellsFor(3) & descriptor.cellMask(cellIndex);
+
+        ASSERT_TRUE(possibilityAtCell.any());
+    }
+
+
+    // Locked candidates have been found
+    ASSERT_TRUE(solver.solveOnce(descriptor));
+
+    {
+        // After running solver, cell (6, 1) cannot be 3
+        auto const cellIndex = ::hiddenPairExample.coordinatesToCell(6, 1);
+        auto const possibilityAtCell = descriptor.possibleCellsFor(3) & descriptor.cellMask(cellIndex);
+
+        ASSERT_TRUE(possibilityAtCell.none());
     }
 }
