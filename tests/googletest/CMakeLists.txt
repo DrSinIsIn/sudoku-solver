@@ -1,4 +1,4 @@
-project(GoogleTest)
+project(GoogleTestFetcher)
 
 include(FetchContent)
 FetchContent_Declare(
