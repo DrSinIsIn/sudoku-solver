@@ -6,7 +6,7 @@
 #include <gtest/gtest.h>
 
 #include "Sudoku.h"
-#include "SudokuDescriptor.h"
+#include "Solvers/Utility/SudokuDescriptor.h"
 
 #include <algorithm>
 #include <array>

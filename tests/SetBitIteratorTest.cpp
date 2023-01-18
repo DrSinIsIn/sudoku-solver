@@ -5,7 +5,7 @@
 
 #include <gtest/gtest.h>
 
-#include "SetBitIterator.h"
+#include "Solvers/Utility/SetBitIterator.h"
 
 #include <algorithm>
 #include <bitset>
