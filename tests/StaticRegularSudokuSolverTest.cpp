@@ -36,6 +36,16 @@ namespace
                                                           8, 0, 0, 0, 0, 7, 0, 9, 0, //
                                                           4, 0, 0, 0, 0, 9, 1, 7, 8, //
                                                           0, 0, 0, 0, 8, 0, 0, 6, 3 };
+
+    inline constexpr SRSudoku9x9 hiddenPairExample  { 0, 0, 9, 0, 3, 2, 0, 0, 0, //
+                                                      0, 0, 0, 7, 0, 0, 0, 0, 0, //
+                                                      1, 6, 2, 0, 0, 0, 0, 0, 0, //
+                                                      0, 1, 0, 0, 2, 0, 5, 6, 0, //
+                                                      0, 0, 0, 9, 0, 0, 0, 0, 0, //
+                                                      0, 5, 0, 0, 0, 0, 1, 0, 7, //
+                                                      0, 0, 0, 0, 0, 0, 4, 0, 3, //
+                                                      0, 2, 6, 0, 0, 9, 0, 0, 0, //
+                                                      0, 0, 5, 8, 7, 0, 0, 0, 0 };
 }
 
 TEST(StaticRegularSudokuSolverTest, nakedSingleSolver_solveOnce)
@@ -227,4 +237,87 @@ TEST(StaticRegularSudokuSolverTest, solvePureSingleSolvable)
 
     // Nothing has been changed that shouldn't have been
     ASSERT_EQ(mismatchIt, resultGrid.end());
+}
+
+TEST(StaticRegularSudokuSolverTest, hiddenPairSolver_solveOnce)
+{
+    HiddenTupleSolver<2, SRSudoku9x9> solver;
+    SudokuDescriptor<SRSudoku9x9> const startDescriptor{ ::hiddenPairExample };
+    SudokuDescriptor<SRSudoku9x9> descriptor{ startDescriptor };
+
+    {
+        // Before running solver, cell (6, 2) has more than 2 possible values
+        auto const cellIndex = ::hiddenPairExample.coordinatesToCell(6, 2);
+        auto const cellMask = descriptor.cellMask(cellIndex);
+
+        auto const count = std::ranges::count_if(descriptor.possibleCellsPerValue()
+                                               , [&cellMask](auto const& possibilities)
+                                                 {
+                                                     auto const masked = possibilities & cellMask;
+                                                     return !masked.none();
+                                                 }
+        );
+
+        ASSERT_GT(count, 2);
+    }
+
+    {
+        // Before running solver, cell (7, 2) has more than 2 possible values
+        auto const cellIndex = ::hiddenPairExample.coordinatesToCell(7, 2);
+        auto const cellMask = descriptor.cellMask(cellIndex);
+
+        auto const count = std::ranges::count_if(descriptor.possibleCellsPerValue()
+                                               , [&cellMask](auto const& possibilities)
+                                                 {
+                                                     auto const masked = possibilities & cellMask;
+                                                     return !masked.none();
+                                                 }
+        );
+
+        ASSERT_GT(count, 2);
+    }
+
+
+    // One or more hidden pairs have been found
+    ASSERT_TRUE(solver.solveOnce(descriptor));
+
+    {
+        // Cell (6, 2)'s only possibilities should be 3 & 7 now
+        auto const cellIndex = ::hiddenPairExample.coordinatesToCell(6, 2);
+        auto const cellMask = descriptor.cellMask(cellIndex);
+        auto const onlyAllowedAddresses = { std::addressof(descriptor.possibleCellsFor(3))
+                                          , std::addressof(descriptor.possibleCellsFor(7)) };
+        for (auto const& possibilities : descriptor.possibleCellsPerValue())
+        {
+            auto const masked = possibilities & cellMask;
+            if (std::ranges::find(onlyAllowedAddresses, std::addressof(possibilities)) != onlyAllowedAddresses.end())
+            {
+                ASSERT_FALSE(masked.none());
+            }
+            else
+            {
+                ASSERT_TRUE(masked.none());
+            }
+        }
+    }
+
+    {
+        // Cell (7, 2)'s only possibility should be 2 & 6 now
+        auto const cellIndex = ::hiddenPairExample.coordinatesToCell(7, 2);
+        auto const cellMask = descriptor.cellMask(cellIndex);
+        auto const onlyAllowedAddresses = { std::addressof(descriptor.possibleCellsFor(3))
+                                          , std::addressof(descriptor.possibleCellsFor(7)) };
+        for (auto const& possibilities : descriptor.possibleCellsPerValue())
+        {
+            auto const masked = possibilities & cellMask;
+            if (std::ranges::find(onlyAllowedAddresses, std::addressof(possibilities)) != onlyAllowedAddresses.end())
+            {
+                ASSERT_FALSE(masked.none());
+            }
+            else
+            {
+                ASSERT_TRUE(masked.none());
+            }
+        }
+    }
 }
