@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include "Solvers/BasicFishSolver.h"
 #include "Solvers/HiddenTupleSolver.h"
 #include "Solvers/LockedCandidatesSolver.h"
 #include "Solvers/NakedSingleSolver.h"
@@ -47,6 +48,16 @@ namespace
                                                       0, 0, 0, 0, 0, 0, 4, 0, 3, //
                                                       0, 2, 6, 0, 0, 9, 0, 0, 0, //
                                                       0, 0, 5, 8, 7, 0, 0, 0, 0 };
+
+    inline constexpr SRSudoku9x9 xWingExample { 0, 0, 5, 4, 0, 0, 6, 0, 2, //
+                                                0, 0, 6, 0, 2, 0, 1, 5, 0, //
+                                                2, 9, 3, 5, 6, 1, 7, 8, 4, //
+                                                0, 5, 2, 3, 0, 4, 8, 0, 0, //
+                                                3, 0, 1, 2, 0, 6, 4, 0, 5, //
+                                                0, 0, 0, 0, 5, 7, 3, 2, 0, //
+                                                0, 3, 0, 0, 4, 2, 5, 6, 0, //
+                                                0, 2, 4, 0, 0, 5, 9, 0, 0, //
+                                                5, 0, 7, 0, 0, 9, 2, 4, 0 };
 }
 
 TEST(StaticRegularSudokuSolverTest, nakedSingleSolver_solveOnce)
@@ -345,6 +356,47 @@ TEST(StaticRegularSudokuSolverTest, lockedCandidatesSolver_solveOnce)
         // After running solver, cell (6, 1) cannot be 3
         auto const cellIndex = ::hiddenPairExample.coordinatesToCell(6, 1);
         auto const possibilityAtCell = descriptor.possibleCellsFor(3) & descriptor.cellMask(cellIndex);
+
+        ASSERT_TRUE(possibilityAtCell.none());
+    }
+}
+
+TEST(StaticRegularSudokuSolverTest, xWingSolver_solveOnce)
+{
+    XWingSolver<SRSudoku9x9> solver;
+    SudokuDescriptor<SRSudoku9x9> const startDescriptor{ ::xWingExample };
+    SudokuDescriptor<SRSudoku9x9> descriptor{ startDescriptor };
+
+    {
+        // Before running solver, cell (4, 3) can be 9
+        auto const cellIndex = ::hiddenPairExample.coordinatesToCell(4, 3);
+        auto const possibilityAtCell = descriptor.possibleCellsFor(9) & descriptor.cellMask(cellIndex);
+
+        ASSERT_TRUE(possibilityAtCell.any());
+    }
+    {
+        // Before running solver, cell (7, 3) can be 9
+        auto const cellIndex = ::hiddenPairExample.coordinatesToCell(7, 3);
+        auto const possibilityAtCell = descriptor.possibleCellsFor(9) & descriptor.cellMask(cellIndex);
+
+        ASSERT_TRUE(possibilityAtCell.any());
+    }
+
+
+    // We fished an X-Wing
+    ASSERT_TRUE(solver.solveOnce(descriptor));
+
+    {
+        // After running solver, cell (4, 3) cannot be 9
+        auto const cellIndex = ::hiddenPairExample.coordinatesToCell(4, 3);
+        auto const possibilityAtCell = descriptor.possibleCellsFor(9) & descriptor.cellMask(cellIndex);
+
+        ASSERT_TRUE(possibilityAtCell.none());
+    }
+    {
+        // After running solver, cell (7, 3) cannot be 9
+        auto const cellIndex = ::hiddenPairExample.coordinatesToCell(7, 3);
+        auto const possibilityAtCell = descriptor.possibleCellsFor(9) & descriptor.cellMask(cellIndex);
 
         ASSERT_TRUE(possibilityAtCell.none());
     }
