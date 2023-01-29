@@ -35,34 +35,37 @@ public:
 private:
     Bitset findNakedSingles(GridDescriptor const& gridDescriptor) const
     {
-        Bitset singleCandidateCells, multiCandidateCells;
+        Bitset nakedSingles{};
 
-        for (auto possibleCells : gridDescriptor.possibleCellsPerValue())
+        Bitset const missingValuesPossibilities = gridDescriptor.possibilities()
+                                                & gridDescriptor.missingValuesMask();
+
+        for (std::size_t cell = 0; cell < Grid::cellCount; ++cell)
         {
-            possibleCells &= gridDescriptor.missingValues();
-
-            multiCandidateCells |= singleCandidateCells & possibleCells;
-            singleCandidateCells |= possibleCells;
-            singleCandidateCells &= ~multiCandidateCells;
+            auto const cellMask = gridDescriptor.cellMask(cell);
+            auto const possibilities = cellMask & missingValuesPossibilities;
+            nakedSingles |= (possibilities.count() == 1) ? possibilities : Bitset{};
         }
 
-        return singleCandidateCells;
+        return nakedSingles;
     }
 
     void solveNakedSingles(GridDescriptor& gridDescriptor, Bitset const& nakedSingles) const
     {
-        gridDescriptor.missingValues() &= ~nakedSingles;
+        Bitset impossibilities{};
+        Bitset cells{};
 
-        for (auto& possibleCells : gridDescriptor.possibleCellsPerValue())
+        for (auto it = SetBitIterator{ nakedSingles }; it != SetBitIterator<Bitset>{}; ++it)
         {
-            Bitset const valueNakedSingles = possibleCells & nakedSingles;
-            for (auto it = SetBitIterator{ valueNakedSingles }; it != SetBitIterator<Bitset>{}; ++it)
-            {
-                auto const cell = *it;
-                possibleCells &= ~gridDescriptor.cellHousesMask(cell);
-            }
-
-            possibleCells |= valueNakedSingles;
+            auto const cell = *it / Grid::maxValue;
+            auto const value = 1 + (*it % Grid::maxValue);
+            impossibilities |= gridDescriptor.cellHousesMask(cell) & gridDescriptor.valueMask(value);
+            cells |= gridDescriptor.cellMask(cell);
         }
+
+        impossibilities &= ~nakedSingles;
+
+        gridDescriptor.missingValuesMask() &= ~cells;
+        gridDescriptor.possibilities() &= ~impossibilities;
     }
 };
