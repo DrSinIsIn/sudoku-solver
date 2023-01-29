@@ -77,6 +77,24 @@ TEST(StaticRegularSudokuSolverTest, nakedSingleSolver_solveOnce)
     auto const newValueCells = startDescriptor.missingValuesMask() & ~descriptor.missingValuesMask();
     ASSERT_EQ(newValueCells, expectedNewValueCells);
 
+    // Only possibilities should be respectively 9 & 6
+    auto const expectedNewValues = (descriptor.cellMask(cellIndex70) & descriptor.valueMask(9))
+                                 | (descriptor.cellMask(cellIndex78) & descriptor.valueMask(6));
+    auto const newValues = descriptor.possibilities() & newValueCells;
+    ASSERT_EQ(newValues, expectedNewValues);
+
+    // Possibilities of respective houses should have been reduced accordingly
+    auto const possibilitiesInHousesMask = (descriptor.cellHousesMask(cellIndex70) & descriptor.valueMask(9))
+                                         | (descriptor.cellHousesMask(cellIndex78) & descriptor.valueMask(6));
+    auto const possibilitiesInHouses = descriptor.possibilities() & possibilitiesInHousesMask;
+    ASSERT_EQ(possibilitiesInHouses, expectedNewValues);
+
+    // And nothing else should have changed
+    auto const possibilitiesChanged = descriptor.possibilities() ^ startDescriptor.possibilities();
+    auto const expectedChangesMask = expectedNewValueCells | possibilitiesInHousesMask;
+    auto const unexpectedChanges = possibilitiesChanged & ~expectedChangesMask;
+    ASSERT_TRUE(unexpectedChanges.none());
+
     // Converting back
     SRSudoku9x9 const resultGrid = descriptor;
     ASSERT_TRUE(resultGrid.isValid());
@@ -154,6 +172,16 @@ TEST(StaticRegularSudokuSolverTest, hiddenSingleSolver_solveOnce)
         auto const cellMask = descriptor.cellMask(cellIndex);
         auto const cellPossibilitiesMask = descriptor.possibilities() & cellMask;
         ASSERT_GT(cellPossibilitiesMask.count(), 1);
+
+        // And there is only possible place for 7 in column 1
+        auto const colMask = descriptor.columnMask(1);
+        auto const valuePossibilities = descriptor.possibilitiesForValue(7);
+        auto const valuePossibilitiesInCol = colMask & valuePossibilities;
+        ASSERT_EQ(valuePossibilitiesInCol.count(), 1);
+
+        // That happens to be cell (1, 8)
+        auto const valuePossibilityInCell = cellMask & valuePossibilities;
+        ASSERT_EQ(valuePossibilityInCell, valuePossibilitiesInCol);
     }
 
     {
@@ -163,7 +191,15 @@ TEST(StaticRegularSudokuSolverTest, hiddenSingleSolver_solveOnce)
         auto const cellPossibilitiesMask = descriptor.possibilities() & cellMask;
         ASSERT_GT(cellPossibilitiesMask.count(), 1);
 
+        // And there is only possible place for 8 in row 5
+        auto const rowMask = descriptor.rowMask(5);
+        auto const valuePossibilities = descriptor.possibilitiesForValue(8);
+        auto const valuePossibilitiesInRow = rowMask & valuePossibilities;
+        ASSERT_EQ(valuePossibilitiesInRow.count(), 1);
 
+        // That happens to be cell (3, 5)
+        auto const valuePossibilityInCell = cellMask & valuePossibilities;
+        ASSERT_EQ(valuePossibilityInCell, valuePossibilitiesInRow);
     }
 
     // One or more hidden singles have been found
