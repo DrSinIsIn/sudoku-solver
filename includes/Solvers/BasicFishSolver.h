@@ -5,9 +5,9 @@
 
 #pragma once
 
-#include <numeric>
 #include <array>
 #include <cstddef>
+#include <numeric>
 
 #include "AbstractSolver.h"
 #include "Utility/MathUtils.h"
