@@ -33,30 +33,33 @@ TEST(StaticRegularSudokuDescriptorTest, descriptor)
     {
         // Cell at (0, 3) has a value
         auto const cellIndex30 = ::subjectGrid.coordinatesToCell(3, 0);
-        ASSERT_FALSE(descriptor.missingValues().test(cellIndex30));
+        auto const cellMask30 = descriptor.cellMask(cellIndex30);
+        auto const missingValueAtCell30Mask = descriptor.missingValuesMask() & cellMask30;
+        ASSERT_TRUE(missingValueAtCell30Mask.none());
 
         // Its value is 1
-        auto const cellMask30 = descriptor.cellMask(cellIndex30);
-        ASSERT_FALSE((descriptor.possibleCellsFor(1) & cellMask30).none());
+        auto const value1Mask = descriptor.possibilitiesForValue(1);
+        ASSERT_TRUE((value1Mask & cellMask30).any());
 
         // Its value couldn't be anything other than 1
-        for (unsigned value{ 2 }; value <= 9; ++value)
-        {
-            ASSERT_TRUE((descriptor.possibleCellsFor(value) & cellMask30).none());
-        }
+        auto const otherValuesMask = descriptor.possibilities() ^ value1Mask;
+        ASSERT_TRUE((otherValuesMask & cellMask30).none());
     }
 
     {
         // Cell at (0, 0) is missing its value
         auto const cellIndex00 = ::subjectGrid.coordinatesToCell(0, 0);
-        ASSERT_TRUE(descriptor.missingValues().test(cellIndex00));
+        auto const cellMask00 = descriptor.cellMask(cellIndex00);
+        auto const missingValueAtCell00Mask = descriptor.missingValuesMask() & cellMask00;
+        ASSERT_TRUE(missingValueAtCell00Mask == cellMask00);
 
         // Its value couldn't be 1
-        auto const cellMask00 = descriptor.cellMask(cellIndex00);
-        ASSERT_TRUE((descriptor.possibleCellsFor(1) & cellMask00).none());
+        auto const value1Mask = descriptor.possibilitiesForValue(1);
+        ASSERT_TRUE((value1Mask & cellMask00).none());
 
         // Its value could be 3
-        ASSERT_FALSE((descriptor.possibleCellsFor(3) & cellMask00).none());
+        auto const value3Mask = descriptor.possibilitiesForValue(3);
+        ASSERT_TRUE((value3Mask & cellMask00).any());
     }
 
     // Converting back
@@ -73,20 +76,19 @@ TEST(StaticRegularSudokuDescriptorTest, modifyingDescriptor)
 
     // Cell at (7, 0) is a naked single...
     auto const cellIndex70 = ::subjectGrid.coordinatesToCell(7, 0);
-    ASSERT_TRUE(descriptor.missingValues().test(cellIndex70));
-
     auto const cellMask70 = descriptor.cellMask(cellIndex70);
-    auto const uniqueValueIt = std::ranges::find_if(descriptor.possibleCellsPerValue()
-                                                    , [&](auto const& bitset)
-                                                    {
-                                                        return !(bitset & cellMask70).none();
-                                                    });
+    auto const missingValueAtCell70Mask = descriptor.missingValuesMask() & cellMask70;
+    ASSERT_TRUE(missingValueAtCell70Mask == cellMask70);
 
     // ...where only possible value is 9
-    ASSERT_EQ(std::addressof(*uniqueValueIt), std::addressof(descriptor.possibleCellsFor(9)));
+    auto const value9Mask = descriptor.possibilitiesForValue(9);
+    ASSERT_TRUE((value9Mask & cellMask70).any());
+
+    auto const otherValuesMask = descriptor.possibilities() ^ value9Mask;
+    ASSERT_TRUE((otherValuesMask & cellMask70).none());
 
     // Tell descriptor that this value is not missing anymore
-    descriptor.missingValues().reset(cellIndex70);
+    descriptor.missingValuesMask() &= ~cellMask70;
 
     SRSudoku9x9 const resultGrid = descriptor;
     // New value should have been set in the resulting grid

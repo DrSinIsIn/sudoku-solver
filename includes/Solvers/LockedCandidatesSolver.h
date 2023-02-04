@@ -21,25 +21,28 @@ public:
     bool solveOnce(GridDescriptor& gridDescriptor) override
     {
         bool found = false;
-        for (Bitset& possibleCells : gridDescriptor.possibleCellsPerValue())
+        for (Integer value = 1; value <= Grid::maxValue; ++value)
         {
+            Bitset const valueMask = gridDescriptor.valueMask(value);
             for (std::size_t i = 0; i < Grid::boxCount; ++i)
             {
                 // reducing possibleCells
+                Bitset const boxXValueMask = gridDescriptor.boxMask(i) & valueMask;
+
                 auto const [boxTopLeftCellX, boxTopLeftCellY] =
                     Grid::cellToCoordinates(Grid::boxIndexToTopLeftCell(i));
                 for (std::size_t j = 0; j < Grid::boxWidth; ++j)
                 {
-                    found |= solveLockedCandidatesFor(possibleCells
-                                                    , gridDescriptor.boxMask(i)
-                                                    , gridDescriptor.columnMask(boxTopLeftCellX + j));
+                    found |= solveLockedCandidatesFor(gridDescriptor.possibilities()
+                                                    , boxXValueMask
+                                                    , gridDescriptor.columnMask(boxTopLeftCellX + j) & valueMask);
                 }
 
                 for (std::size_t j = 0; j < Grid::boxHeight; ++j)
                 {
-                    found |= solveLockedCandidatesFor(possibleCells
-                                                    , gridDescriptor.boxMask(i)
-                                                    , gridDescriptor.rowMask(boxTopLeftCellY + j));
+                    found |= solveLockedCandidatesFor(gridDescriptor.possibilities()
+                                                    , boxXValueMask
+                                                    , gridDescriptor.rowMask(boxTopLeftCellY + j) & valueMask);
                 }
             }
         }

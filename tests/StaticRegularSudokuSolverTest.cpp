@@ -70,17 +70,30 @@ TEST(StaticRegularSudokuSolverTest, nakedSingleSolver_solveOnce)
     // One or more naked singles have been found
     ASSERT_TRUE(solver.solveOnce(descriptor));
 
-    // Exact count should be 2
-    auto const newValues = startDescriptor.missingValues() & ~descriptor.missingValues();
-    ASSERT_EQ(newValues.count(), 2);
-
-    // Cell (7, 0) should have been found & solved
+    // Exact count should be 2 new solved cells: (7, 0) & (7, 8)
     auto const cellIndex70 = ::pureNakedSingleSolvable.coordinatesToCell(7, 0);
-    ASSERT_FALSE(descriptor.missingValues().test(cellIndex70));
-
-    // Cell (7, 8) should have been found & solved
     auto const cellIndex78 = ::pureNakedSingleSolvable.coordinatesToCell(7, 8);
-    ASSERT_FALSE(descriptor.missingValues().test(cellIndex78));
+    auto const expectedNewValueCells = descriptor.cellMask(cellIndex70) | descriptor.cellMask(cellIndex78);
+    auto const newValueCells = startDescriptor.missingValuesMask() & ~descriptor.missingValuesMask();
+    ASSERT_EQ(newValueCells, expectedNewValueCells);
+
+    // Only possibilities should be respectively 9 & 6
+    auto const expectedNewValues = (descriptor.cellMask(cellIndex70) & descriptor.valueMask(9))
+                                 | (descriptor.cellMask(cellIndex78) & descriptor.valueMask(6));
+    auto const newValues = descriptor.possibilities() & newValueCells;
+    ASSERT_EQ(newValues, expectedNewValues);
+
+    // Possibilities of respective houses should have been reduced accordingly
+    auto const possibilitiesInHousesMask = (descriptor.cellHousesMask(cellIndex70) & descriptor.valueMask(9))
+                                         | (descriptor.cellHousesMask(cellIndex78) & descriptor.valueMask(6));
+    auto const possibilitiesInHouses = descriptor.possibilities() & possibilitiesInHousesMask;
+    ASSERT_EQ(possibilitiesInHouses, expectedNewValues);
+
+    // And nothing else should have changed
+    auto const possibilitiesChanged = descriptor.possibilities() ^ startDescriptor.possibilities();
+    auto const expectedChangesMask = expectedNewValueCells | possibilitiesInHousesMask;
+    auto const unexpectedChanges = possibilitiesChanged & ~expectedChangesMask;
+    ASSERT_TRUE(unexpectedChanges.none());
 
     // Converting back
     SRSudoku9x9 const resultGrid = descriptor;
@@ -107,13 +120,16 @@ TEST(StaticRegularSudokuSolverTest, solvePureNakedSingleSolvable)
     NakedSingleSolver<SRSudoku9x9> solver;
     SudokuDescriptor<SRSudoku9x9> descriptor{ ::pureNakedSingleSolvable };
 
-    std::size_t oldMissingCount = descriptor.missingValues().count();
+    auto oldMissingValues = descriptor.missingValuesMask();
     while (solver.solveOnce(descriptor))
     {
         ASSERT_TRUE(SRSudoku9x9{ descriptor }.isValid());
-        std::size_t newMissingCount = descriptor.missingValues().count();
-        ASSERT_LT(newMissingCount, oldMissingCount);
-        oldMissingCount = newMissingCount;
+
+        // Any new cell solved?
+        auto const newMissingValues = descriptor.missingValuesMask();
+        ASSERT_TRUE((oldMissingValues & ~newMissingValues).any());
+
+        oldMissingValues = newMissingValues;
     }
 
     SRSudoku9x9 const resultGrid = descriptor;
@@ -154,34 +170,37 @@ TEST(StaticRegularSudokuSolverTest, hiddenSingleSolver_solveOnce)
         // Before running solver, cell (1, 8) has multiple possible values
         auto const cellIndex = ::hiddenSingleFirstStep.coordinatesToCell(1, 8);
         auto const cellMask = descriptor.cellMask(cellIndex);
+        auto const cellPossibilitiesMask = descriptor.possibilities() & cellMask;
+        ASSERT_GT(cellPossibilitiesMask.count(), 1);
 
-        auto const count = std::ranges::count_if(descriptor.possibleCellsPerValue()
-                                               , [&cellMask](auto const& possibilities)
-                                                 {
-                                                     auto const masked = possibilities & cellMask;
-                                                     return !masked.none();
-                                                 }
-        );
+        // And there is only possible place for 7 in column 1
+        auto const colMask = descriptor.columnMask(1);
+        auto const valuePossibilities = descriptor.possibilitiesForValue(7);
+        auto const valuePossibilitiesInCol = colMask & valuePossibilities;
+        ASSERT_EQ(valuePossibilitiesInCol.count(), 1);
 
-        ASSERT_GT(count, 1);
+        // That happens to be cell (1, 8)
+        auto const valuePossibilityInCell = cellMask & valuePossibilities;
+        ASSERT_EQ(valuePossibilityInCell, valuePossibilitiesInCol);
     }
 
     {
         // Before running solver, cell (3, 5) has multiple possible values
         auto const cellIndex = ::hiddenSingleFirstStep.coordinatesToCell(3, 5);
         auto const cellMask = descriptor.cellMask(cellIndex);
+        auto const cellPossibilitiesMask = descriptor.possibilities() & cellMask;
+        ASSERT_GT(cellPossibilitiesMask.count(), 1);
 
-        auto const count = std::ranges::count_if(descriptor.possibleCellsPerValue()
-                                               , [&cellMask](auto const& possibilities)
-                                                 {
-                                                     auto const masked = possibilities & cellMask;
-                                                     return !masked.none();
-                                                 }
-        );
+        // And there is only possible place for 8 in row 5
+        auto const rowMask = descriptor.rowMask(5);
+        auto const valuePossibilities = descriptor.possibilitiesForValue(8);
+        auto const valuePossibilitiesInRow = rowMask & valuePossibilities;
+        ASSERT_EQ(valuePossibilitiesInRow.count(), 1);
 
-        ASSERT_GT(count, 1);
+        // That happens to be cell (3, 5)
+        auto const valuePossibilityInCell = cellMask & valuePossibilities;
+        ASSERT_EQ(valuePossibilityInCell, valuePossibilitiesInRow);
     }
-
 
     // One or more hidden singles have been found
     ASSERT_TRUE(solver.solveOnce(descriptor));
@@ -190,38 +209,20 @@ TEST(StaticRegularSudokuSolverTest, hiddenSingleSolver_solveOnce)
         // Cell (1, 8)'s only possibility should be 7 now
         auto const cellIndex = ::hiddenSingleFirstStep.coordinatesToCell(1, 8);
         auto const cellMask = descriptor.cellMask(cellIndex);
-        auto const onlyAllowedAddress = std::addressof(descriptor.possibleCellsFor(7));
-        for (auto const& possibilities : descriptor.possibleCellsPerValue())
-        {
-            auto const masked = possibilities & cellMask;
-            if (std::addressof(possibilities) == onlyAllowedAddress)
-            {
-                ASSERT_FALSE(masked.none());
-            }
-            else
-            {
-                ASSERT_TRUE(masked.none());
-            }
-        }
+        auto const expectedPossibilities = descriptor.valueMask(7) & cellMask;
+
+        auto const actualPossibilities = descriptor.possibilities() & cellMask;
+        ASSERT_EQ(actualPossibilities, expectedPossibilities);
     }
 
     {
         // Cell (3, 5)'s only possibility should be 8 now
         auto const cellIndex = ::hiddenSingleFirstStep.coordinatesToCell(3, 5);
         auto const cellMask = descriptor.cellMask(cellIndex);
-        auto const onlyAllowedAddress = std::addressof(descriptor.possibleCellsFor(8));
-        for (auto const& possibilities : descriptor.possibleCellsPerValue())
-        {
-            auto const masked = possibilities & cellMask;
-            if (std::addressof(possibilities) == onlyAllowedAddress)
-            {
-                ASSERT_FALSE(masked.none());
-            }
-            else
-            {
-                ASSERT_TRUE(masked.none());
-            }
-        }
+        auto const expectedPossibilities = descriptor.valueMask(8) & cellMask;
+
+        auto const actualPossibilities = descriptor.possibilities() & cellMask;
+        ASSERT_EQ(actualPossibilities, expectedPossibilities);
     }
 }
 
@@ -261,32 +262,16 @@ TEST(StaticRegularSudokuSolverTest, hiddenPairSolver_solveOnce)
         // Before running solver, cell (6, 2) has more than 2 possible values
         auto const cellIndex = ::hiddenPairExample.coordinatesToCell(6, 2);
         auto const cellMask = descriptor.cellMask(cellIndex);
-
-        auto const count = std::ranges::count_if(descriptor.possibleCellsPerValue()
-                                               , [&cellMask](auto const& possibilities)
-                                                 {
-                                                     auto const masked = possibilities & cellMask;
-                                                     return !masked.none();
-                                                 }
-        );
-
-        ASSERT_GT(count, 2);
+        auto const cellPossibilitiesMask = descriptor.possibilities() & cellMask;
+        ASSERT_GT(cellPossibilitiesMask.count(), 2);
     }
 
     {
         // Before running solver, cell (7, 2) has more than 2 possible values
         auto const cellIndex = ::hiddenPairExample.coordinatesToCell(7, 2);
         auto const cellMask = descriptor.cellMask(cellIndex);
-
-        auto const count = std::ranges::count_if(descriptor.possibleCellsPerValue()
-                                               , [&cellMask](auto const& possibilities)
-                                                 {
-                                                     auto const masked = possibilities & cellMask;
-                                                     return !masked.none();
-                                                 }
-        );
-
-        ASSERT_GT(count, 2);
+        auto const cellPossibilitiesMask = descriptor.possibilities() & cellMask;
+        ASSERT_GT(cellPossibilitiesMask.count(), 2);
     }
 
 
@@ -297,40 +282,20 @@ TEST(StaticRegularSudokuSolverTest, hiddenPairSolver_solveOnce)
         // Cell (6, 2)'s only possibilities should be 3 & 7 now
         auto const cellIndex = ::hiddenPairExample.coordinatesToCell(6, 2);
         auto const cellMask = descriptor.cellMask(cellIndex);
-        auto const onlyAllowedAddresses = { std::addressof(descriptor.possibleCellsFor(3))
-                                          , std::addressof(descriptor.possibleCellsFor(7)) };
-        for (auto const& possibilities : descriptor.possibleCellsPerValue())
-        {
-            auto const masked = possibilities & cellMask;
-            if (std::ranges::find(onlyAllowedAddresses, std::addressof(possibilities)) != onlyAllowedAddresses.end())
-            {
-                ASSERT_FALSE(masked.none());
-            }
-            else
-            {
-                ASSERT_TRUE(masked.none());
-            }
-        }
+        auto const expectedPossibilities = (descriptor.valueMask(3) | descriptor.valueMask(7)) & cellMask;
+
+        auto const actualPossibilities = descriptor.possibilities() & cellMask;
+        ASSERT_EQ(actualPossibilities, expectedPossibilities);
     }
 
     {
-        // Cell (7, 2)'s only possibility should be 2 & 6 now
+        // Cell (7, 2)'s only possibility should be 3 & 7 now
         auto const cellIndex = ::hiddenPairExample.coordinatesToCell(7, 2);
         auto const cellMask = descriptor.cellMask(cellIndex);
-        auto const onlyAllowedAddresses = { std::addressof(descriptor.possibleCellsFor(3))
-                                          , std::addressof(descriptor.possibleCellsFor(7)) };
-        for (auto const& possibilities : descriptor.possibleCellsPerValue())
-        {
-            auto const masked = possibilities & cellMask;
-            if (std::ranges::find(onlyAllowedAddresses, std::addressof(possibilities)) != onlyAllowedAddresses.end())
-            {
-                ASSERT_FALSE(masked.none());
-            }
-            else
-            {
-                ASSERT_TRUE(masked.none());
-            }
-        }
+        auto const expectedPossibilities = (descriptor.valueMask(3) | descriptor.valueMask(7)) & cellMask;
+
+        auto const actualPossibilities = descriptor.possibilities() & cellMask;
+        ASSERT_EQ(actualPossibilities, expectedPossibilities);
     }
 }
 
@@ -343,7 +308,7 @@ TEST(StaticRegularSudokuSolverTest, lockedCandidatesSolver_solveOnce)
     {
         // Before running solver, cell (6, 1) can be 3
         auto const cellIndex = ::hiddenPairExample.coordinatesToCell(6, 1);
-        auto const possibilityAtCell = descriptor.possibleCellsFor(3) & descriptor.cellMask(cellIndex);
+        auto const possibilityAtCell = descriptor.possibilitiesForValue(3) & descriptor.cellMask(cellIndex);
 
         ASSERT_TRUE(possibilityAtCell.any());
     }
@@ -355,7 +320,7 @@ TEST(StaticRegularSudokuSolverTest, lockedCandidatesSolver_solveOnce)
     {
         // After running solver, cell (6, 1) cannot be 3
         auto const cellIndex = ::hiddenPairExample.coordinatesToCell(6, 1);
-        auto const possibilityAtCell = descriptor.possibleCellsFor(3) & descriptor.cellMask(cellIndex);
+        auto const possibilityAtCell = descriptor.possibilitiesForValue(3) & descriptor.cellMask(cellIndex);
 
         ASSERT_TRUE(possibilityAtCell.none());
     }
@@ -370,14 +335,14 @@ TEST(StaticRegularSudokuSolverTest, xWingSolver_solveOnce)
     {
         // Before running solver, cell (4, 3) can be 9
         auto const cellIndex = ::hiddenPairExample.coordinatesToCell(4, 3);
-        auto const possibilityAtCell = descriptor.possibleCellsFor(9) & descriptor.cellMask(cellIndex);
+        auto const possibilityAtCell = descriptor.possibilitiesForValue(9) & descriptor.cellMask(cellIndex);
 
         ASSERT_TRUE(possibilityAtCell.any());
     }
     {
         // Before running solver, cell (7, 3) can be 9
         auto const cellIndex = ::hiddenPairExample.coordinatesToCell(7, 3);
-        auto const possibilityAtCell = descriptor.possibleCellsFor(9) & descriptor.cellMask(cellIndex);
+        auto const possibilityAtCell = descriptor.possibilitiesForValue(9) & descriptor.cellMask(cellIndex);
 
         ASSERT_TRUE(possibilityAtCell.any());
     }
@@ -389,14 +354,14 @@ TEST(StaticRegularSudokuSolverTest, xWingSolver_solveOnce)
     {
         // After running solver, cell (4, 3) cannot be 9
         auto const cellIndex = ::hiddenPairExample.coordinatesToCell(4, 3);
-        auto const possibilityAtCell = descriptor.possibleCellsFor(9) & descriptor.cellMask(cellIndex);
+        auto const possibilityAtCell = descriptor.possibilitiesForValue(9) & descriptor.cellMask(cellIndex);
 
         ASSERT_TRUE(possibilityAtCell.none());
     }
     {
         // After running solver, cell (7, 3) cannot be 9
         auto const cellIndex = ::hiddenPairExample.coordinatesToCell(7, 3);
-        auto const possibilityAtCell = descriptor.possibleCellsFor(9) & descriptor.cellMask(cellIndex);
+        auto const possibilityAtCell = descriptor.possibilitiesForValue(9) & descriptor.cellMask(cellIndex);
 
         ASSERT_TRUE(possibilityAtCell.none());
     }

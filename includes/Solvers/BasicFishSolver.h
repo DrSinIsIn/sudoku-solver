@@ -5,9 +5,9 @@
 
 #pragma once
 
-#include <numeric>
 #include <array>
 #include <cstddef>
+#include <numeric>
 
 #include "AbstractSolver.h"
 #include "Utility/MathUtils.h"
@@ -67,8 +67,9 @@ private:
     {
         bool found = false;
 
-        for (auto& possibleCells : gridDescriptor.possibleCellsPerValue())
+        for (Integer value = 1; value <= Grid::maxValue; ++value)
         {
+            Bitset const possibleCells = gridDescriptor.possibilitiesForValue(value);
             Bitset const inRows = possibleCells & rowsMask;
             Bitset const inCols = possibleCells & colsMask;
             Bitset const possibleFish = inRows & inCols;
@@ -79,12 +80,12 @@ private:
 
             if (inRows == possibleFish)
             {
-                possibleCells &= ~(inCols ^ possibleFish);
+                gridDescriptor.possibilities() &= ~(inCols ^ possibleFish);
                 found = true;
             }
             else if (inCols == possibleFish)
             {
-                possibleCells &= ~(inRows ^ possibleFish);
+                gridDescriptor.possibilities() &= ~(inRows ^ possibleFish);
                 found = true;
             }
         }
